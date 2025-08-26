@@ -18,6 +18,10 @@
 
 ## Process
 
+### 0. Tooling
+
+- Use ripgrep to help you find code.
+
 ### 1. Planning & Staging
 
 Break complex work into 3-5 stages. Document in `IMPLEMENTATION_PLAN.md`:
@@ -117,6 +121,7 @@ When multiple valid approaches exist, choose based on:
 - Use project's existing build system
 - Use project's test framework
 - Use project's formatter/linter settings
+- Use ripgrep to help you find code.
 - Don't introduce new tools without strong justification
 
 ## Quality Gates
