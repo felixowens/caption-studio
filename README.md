@@ -1,4 +1,4 @@
-# Caption Studio
+# Caption Studio (In active development/not ready for use) 🚧
 
 An AI-powered image captioning and annotation tool built with Go and React.
 
