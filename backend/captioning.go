@@ -147,9 +147,10 @@ func (g *GeminiService) GenerateEditCaption(imageABase64, imageBBase64, systemPr
 	// Helper function to determine MIME type
 	getMimeType := func(base64Data string) string {
 		if len(base64Data) > 0 {
-			if base64Data[:4] == "iVBO" { // PNG signature in base64
+			switch base64Data[:4] {
+			case "iVBO": // PNG signature in base64
 				return "image/png"
-			} else if base64Data[:4] == "UklG" { // WebP signature in base64
+			case "UklG": // WebP signature in base64
 				return "image/webp"
 			}
 		}
