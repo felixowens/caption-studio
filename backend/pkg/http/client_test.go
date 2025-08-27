@@ -45,7 +45,7 @@ func Test_SuccessWithoutRetry(t *testing.T) {
 
 func Test_RetryOn500ThenSucceed(t *testing.T) {
 	var hits int32
-	srv := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	srv := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
 		n := atomic.AddInt32(&hits, 1)
 		if n <= 2 {
 			w.WriteHeader(500)
@@ -219,5 +219,49 @@ func Test_TimedOut(t *testing.T) {
 	resp, err := c.Do(req)
 	if err == nil || !errors.Is(err, context.DeadlineExceeded) || resp != nil {
 		t.Fatalf("expected context error; got resp=%v err=%v", resp, err)
+	}
+}
+
+func Test_FixedBackoff(t *testing.T) {
+	backoff := FixedBackoff(100 * time.Millisecond)
+
+	expected := []time.Duration{100 * time.Millisecond, 100 * time.Millisecond, 100 * time.Millisecond}
+
+	for i, exp := range expected {
+		if got := backoff(i); got != exp {
+			t.Errorf("attempt %d: expected %v, got %v", i, exp, got)
+		}
+	}
+}
+
+func Test_ExponentialBackoff(t *testing.T) {
+	backoff := ExponentialBackoff(100*time.Millisecond, 2.0)
+
+	expected := []time.Duration{
+		100 * time.Millisecond, // 100 * 2^0 = 100ms
+		200 * time.Millisecond, // 100 * 2^1 = 200ms
+		400 * time.Millisecond, // 100 * 2^2 = 400ms
+	}
+
+	for i, exp := range expected {
+		if got := backoff(i); got != exp {
+			t.Errorf("attempt %d: expected %v, got %v", i, exp, got)
+		}
+	}
+}
+
+func Test_LinearBackoff(t *testing.T) {
+	backoff := LinearBackoff(50 * time.Millisecond)
+
+	expected := []time.Duration{
+		50 * time.Millisecond,  // 50 * (0+1) = 50ms
+		100 * time.Millisecond, // 50 * (1+1) = 100ms
+		150 * time.Millisecond, // 50 * (2+1) = 150ms
+	}
+
+	for i, exp := range expected {
+		if got := backoff(i); got != exp {
+			t.Errorf("attempt %d: expected %v, got %v", i, exp, got)
+		}
 	}
 }
