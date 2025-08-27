@@ -1,11 +1,8 @@
-package captioners
+package captioner
 
 import "fmt"
 
 // ErrUnsupportedProvider is returned when an unsupported provider is requested
-func ErrUnsupportedProvider(provider string) error {
+func ErrUnsupportedProvider(provider Provider) error {
 	return fmt.Errorf("unsupported captioner provider: %s", provider)
 }
-
-// ErrAPIKeyRequired is returned when no API key is provided
-var ErrAPIKeyRequired = fmt.Errorf("API key is required")

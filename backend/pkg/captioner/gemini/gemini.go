@@ -1,33 +1,68 @@
-package captioners
+package gemini
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+
+	"main/pkg/captioner"
 )
+
+// ProviderGemini represents the Gemini provider
+const ProviderGemini captioner.Provider = "gemini"
+
+// ModelGeminiPro represents the Gemini 2.5 Pro model
+const ModelGeminiPro captioner.Model = "gemini-2.5-pro"
+
+// endpointGeminiPro represents the Gemini 2.5 Pro endpoint
+var endpointGeminiPro = url.URL{
+	Scheme: "https",
+	Host:   "generativelanguage.googleapis.com",
+	Path:   "/v1beta/models/gemini-2.5-pro:generateContent",
+}
+
+type HTTPClient interface {
+	Post(url, contentType string, body io.Reader) (*http.Response, error)
+}
 
 // Gemini implements the Captioner interface using Google's Gemini API
 type Gemini struct {
-	apiKey  string
-	client  *http.Client
-	baseURL string
+	apiKey   string
+	client   HTTPClient
+	endpoint url.URL
 }
 
+// TODO: take a http.Client as a parameter instead of an endpoint for easier testing
 // NewGemini creates a new Gemini captioner
-func NewGemini(apiKey string) *Gemini {
-	return &Gemini{
-		apiKey:  apiKey,
-		client:  &http.Client{},
-		baseURL: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+func NewGemini(apiKey string, model captioner.Model, client HTTPClient) (*Gemini, error) {
+	var endpoint = url.URL{}
+
+	switch model {
+	case ModelGeminiPro:
+		endpoint = endpointGeminiPro
+	default:
+		return nil, fmt.Errorf("unsupported model: %s", model)
 	}
+
+	if client == nil {
+		client = &http.Client{}
+	}
+
+	return &Gemini{
+		apiKey:   apiKey,
+		client:   client,
+		endpoint: endpoint,
+	}, nil
 }
 
 // CaptionSingle generates a caption for a single image
-func (g *Gemini) CaptionSingle(imageBase64, systemPrompt string) (string, error) {
+func (g *Gemini) CaptionSingle(ctx context.Context, image captioner.Image, systemPrompt string) (string, error) {
 	if g.apiKey == "" {
-		return "", ErrAPIKeyRequired
+		return "", fmt.Errorf("API key is required")
 	}
 
 	if systemPrompt == "" {
@@ -41,8 +76,8 @@ func (g *Gemini) CaptionSingle(imageBase64, systemPrompt string) (string, error)
 					{Text: systemPrompt},
 					{
 						InlineData: &geminiInlineData{
-							MimeType: detectMimeType(imageBase64),
-							Data:     imageBase64,
+							MimeType: image.MimeType.String(),
+							Data:     image.Base64(),
 						},
 					},
 				},
@@ -54,11 +89,7 @@ func (g *Gemini) CaptionSingle(imageBase64, systemPrompt string) (string, error)
 }
 
 // CaptionEdit generates a caption describing the difference between two images
-func (g *Gemini) CaptionEdit(imageABase64, imageBBase64, systemPrompt string) (string, error) {
-	if g.apiKey == "" {
-		return "", ErrAPIKeyRequired
-	}
-
+func (g *Gemini) CaptionEdit(ctx context.Context, imgA, imgB captioner.Image, systemPrompt string) (string, error) {
 	if systemPrompt == "" {
 		systemPrompt = "Compare these two images and describe the edit or transformation that was applied to convert the first image into the second image. Focus on the specific changes made, including any adjustments to color, lighting, objects, text, style, or composition. Be concise and descriptive."
 	}
@@ -70,14 +101,14 @@ func (g *Gemini) CaptionEdit(imageABase64, imageBBase64, systemPrompt string) (s
 					{Text: systemPrompt},
 					{
 						InlineData: &geminiInlineData{
-							MimeType: detectMimeType(imageABase64),
-							Data:     imageABase64,
+							MimeType: imgA.MimeType.String(),
+							Data:     imgA.Base64(),
 						},
 					},
 					{
 						InlineData: &geminiInlineData{
-							MimeType: detectMimeType(imageBBase64),
-							Data:     imageBBase64,
+							MimeType: imgB.MimeType.String(),
+							Data:     imgB.Base64(),
 						},
 					},
 				},
@@ -95,7 +126,7 @@ func (g *Gemini) makeRequest(request geminiRequest) (string, error) {
 		return "", fmt.Errorf("failed to marshal request: %v", err)
 	}
 
-	url := fmt.Sprintf("%s?key=%s", g.baseURL, g.apiKey)
+	url := fmt.Sprintf("%s?key=%s", g.endpoint.String(), g.apiKey)
 
 	resp, err := g.client.Post(url, "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
@@ -126,50 +157,4 @@ func (g *Gemini) makeRequest(request geminiRequest) (string, error) {
 	}
 
 	return geminiResponse.Candidates[0].Content.Parts[0].Text, nil
-}
-
-// detectMimeType detects MIME type from base64 data
-func detectMimeType(base64Data string) string {
-	if len(base64Data) > 4 {
-		switch base64Data[:4] {
-		case "iVBO":
-			return "image/png"
-		case "UklG":
-			return "image/webp"
-		}
-	}
-	return "image/jpeg"
-}
-
-// Gemini API types
-type geminiRequest struct {
-	Contents []geminiContent `json:"contents"`
-}
-
-type geminiContent struct {
-	Parts []geminiPart `json:"parts"`
-}
-
-type geminiPart struct {
-	Text       string            `json:"text,omitempty"`
-	InlineData *geminiInlineData `json:"inlineData,omitempty"`
-}
-
-type geminiInlineData struct {
-	MimeType string `json:"mimeType"`
-	Data     string `json:"data"`
-}
-
-type geminiResponse struct {
-	Candidates []geminiCandidate `json:"candidates"`
-	Error      *geminiError      `json:"error,omitempty"`
-}
-
-type geminiCandidate struct {
-	Content geminiContent `json:"content"`
-}
-
-type geminiError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
 }
