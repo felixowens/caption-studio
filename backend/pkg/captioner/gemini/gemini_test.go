@@ -44,8 +44,7 @@ func TestNewGemini(t *testing.T) {
 
 func TestNewCaptioner(t *testing.T) {
 	config := &captionerPkg.Config{
-		Provider: "gemini",
-		ApiKey:   "test-key",
+		ApiKey: "test-key",
 	}
 
 	captioner, err := NewGemini(config.ApiKey, ModelGeminiPro, nil)
