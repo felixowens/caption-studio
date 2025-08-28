@@ -8,11 +8,12 @@ import (
 
 // Service is the service layer for the application.
 type Service struct {
-	db     *db.Queries
-	logger *slog.Logger
+	db             *db.Queries
+	logger         *slog.Logger
+	CaptionService CaptionService
 }
 
 // NewService creates a new validated Service.
 func NewService(db *db.Queries, logger *slog.Logger) *Service {
-	return &Service{db: db, logger: logger}
+	return &Service{db: db, logger: logger, CaptionService: NewCaptionService(db, logger)}
 }

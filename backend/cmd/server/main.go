@@ -6,6 +6,7 @@ import (
 	"main/internal/config"
 	"main/internal/db"
 	"main/internal/service"
+	"main/internal/transport/httpresource"
 	pkghuma "main/pkg/huma"
 	"main/pkg/logging"
 
@@ -84,12 +85,10 @@ func initializeService(cfg *config.Config, logger *slog.Logger) (*service.Servic
 }
 
 func setupServer(cfg *config.Config, logger *slog.Logger) (*http.Server, error) {
-	service, err := initializeService(cfg, logger)
+	s, err := initializeService(cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize service: %w", err)
 	}
-
-	service.Foo()
 
 	router := chi.NewMux()
 	api := humachi.New(router, huma.DefaultConfig(cfg.Service.Name, cfg.Service.Version))
@@ -105,6 +104,8 @@ func setupServer(cfg *config.Config, logger *slog.Logger) (*http.Server, error) 
 		ReadTimeout:  cfg.Server.ReadTimeout,
 		WriteTimeout: cfg.Server.WriteTimeout,
 	}
+
+	httpresource.ProvisionCaptionsResource(api, *cfg, s.CaptionService, logger.With("component", "captions"))
 
 	return server, nil
 }
