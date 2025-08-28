@@ -21,6 +21,7 @@
 ### 0. Tooling
 
 - Use ripgrep to help you find code.
+- Use `go-outline -f` to get the definition of a Go file without needing to read the whole thing.  
 
 ### 1. Planning & Staging
 
@@ -123,6 +124,7 @@ When multiple valid approaches exist, choose based on:
 - Use project's formatter/linter settings
 - Use ripgrep to help you find code.
 - Don't introduce new tools without strong justification
+- Use `go-outline -f` to get the definition of a Go file without needing to read the whole thing.  
 
 ## Quality Gates
 

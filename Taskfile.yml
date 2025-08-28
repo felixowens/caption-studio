@@ -16,3 +16,51 @@ tasks:
     desc: Run the project in development mode
     cmds:
       - concurrently "cd frontend && pnpm run dev" "cd backend && go build . && ./main"
+
+  migrate:create:
+    desc: "Create new migration file (usage: task db:migrate:create -- migration_name)"
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - goose -dir migrations create {{.CLI_ARGS}} sql
+    requires:
+      vars: [CLI_ARGS]
+
+  migrate:up:
+    desc: Run all up migrations
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - goose -dir migrations sqlite3 $APP_DB_FILE up
+    requires:
+      vars: [CLI_ARGS]
+
+  migrate:down:
+    desc: Run all down migrations
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - goose -dir migrations sqlite3 $APP_DB_FILE down
+    requires:
+      vars: [CLI_ARGS]
+
+  db:new:
+    desc: Create a new database
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - sqlite3 $APP_DB_FILE "CREATE TABLE test (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)"
+
+  gen:sqlc:
+    desc: Generate sqlc code
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - sqlc generate
+    sources:
+      - sqlc.yaml
+      - queries/*.sql
+      - migrations/*.sql
+    generates:
+      - internal/db/*.go
+
+  backend:start:
+    desc: Run the backend server
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go run ./cmd/server/main.go

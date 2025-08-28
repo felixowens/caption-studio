@@ -21,6 +21,7 @@ backend/*.exe
 # Go specific
 *.mod
 vendor/
+.task/
 
 # Database and data files
 backend/data/
