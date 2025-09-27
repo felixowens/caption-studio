@@ -2531,7 +2531,7 @@ func autoCaptionTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate caption
-	response, err := GenerateCaptionForTask(task.ProjectID, taskID)
+	response, err := GenerateCaptionForTask(r.Context(), task.ProjectID, taskID)
 	if err != nil {
 		http.Error(w, "Failed to generate caption", http.StatusInternalServerError)
 		logError(r.Context(), "Failed to generate caption", err, slog.String("task_id", taskID))

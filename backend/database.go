@@ -21,7 +21,7 @@ func initDatabase() error {
 	}
 
 	// Open database connection
-	dbPath := filepath.Join(dataDir, "app.db")
+	dbPath := filepath.Join(dataDir, "app_legacy.db")
 	var err error
 	db, err = sql.Open("sqlite3", dbPath+"?_foreign_keys=on")
 	if err != nil {
@@ -43,7 +43,7 @@ func initDatabase() error {
 		return fmt.Errorf("failed to run migrations: %v", err)
 	}
 
-	logger.Info("Database initialized successfully", 
+	logger.Info("Database initialized successfully",
 		"db_path", dbPath,
 		"max_connections", 25,
 	)
@@ -269,11 +269,11 @@ func listProjects() ([]Project, error) {
 		if err := rows.Scan(&project.ID, &project.Name, &project.Version, &promptButtonsJSON, &project.ParentProjectID, &project.ProjectType, &project.CaptionAPI, &project.SystemPrompt, &project.AutoCaptionConfig); err != nil {
 			return nil, err
 		}
-		
+
 		if err := json.Unmarshal([]byte(promptButtonsJSON), &project.PromptButtons); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal prompt buttons: %v", err)
 		}
-		
+
 		projects = append(projects, project)
 	}
 
@@ -644,7 +644,7 @@ func addAutoCaptionSupport() error {
 	queries := []string{
 		// Add auto_caption_config column to projects table
 		`ALTER TABLE projects ADD COLUMN auto_caption_config TEXT`,
-		// Add status column to caption_tasks table  
+		// Add status column to caption_tasks table
 		`ALTER TABLE caption_tasks ADD COLUMN status TEXT DEFAULT 'pending'`,
 		// Update existing tasks to have 'completed' status if they have a caption
 		`UPDATE caption_tasks SET status = 'completed' WHERE caption IS NOT NULL AND caption != ''`,

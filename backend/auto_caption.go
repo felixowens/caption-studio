@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"main/pkg/captioner"
 )
 
 // AutoCaptionManager handles bulk auto captioning with rate limiting
@@ -336,7 +338,7 @@ func (acm *AutoCaptionManager) processAutoCaptioning(ctx context.Context, sessio
 }
 
 // processCaptionTaskWithRetries handles a single caption task with retry logic
-func (acm *AutoCaptionManager) processCaptionTaskWithRetries(ctx context.Context, task CaptionTask, session *AutoCaptionSession, service CaptioningService, systemPrompt, projectID string) bool {
+func (acm *AutoCaptionManager) processCaptionTaskWithRetries(ctx context.Context, task CaptionTask, session *AutoCaptionSession, service captioner.Captioner, systemPrompt, projectID string) bool {
 	maxRetries := session.Config.MaxRetries
 	if maxRetries <= 0 {
 		maxRetries = 3
@@ -370,11 +372,11 @@ func (acm *AutoCaptionManager) processCaptionTaskWithRetries(ctx context.Context
 			return false
 		}
 
-		// Convert image to base64
+		// Load image
 		imagePath := filepath.Join("data", "projects", projectID, image.Path)
-		imageBase64, err := ImageToBase64(imagePath)
+		captionerImage, err := LoadImage(imagePath)
 		if err != nil {
-			logger.Error("Failed to encode image for auto captioning", "error", err, "path", imagePath)
+			logger.Error("Failed to load image for auto captioning", "error", err, "path", imagePath)
 			if attempt == maxRetries {
 				return false
 			}
@@ -383,7 +385,7 @@ func (acm *AutoCaptionManager) processCaptionTaskWithRetries(ctx context.Context
 		}
 
 		// Generate caption
-		caption, err := service.GenerateCaption(imageBase64, systemPrompt)
+		caption, err := service.CaptionSingle(ctx, *captionerImage, systemPrompt)
 		if err != nil {
 			logger.Error("Failed to generate caption", "error", err, "task_id", task.ID, "attempt", attempt+1)
 			if attempt == maxRetries {
@@ -415,7 +417,7 @@ func (acm *AutoCaptionManager) processCaptionTaskWithRetries(ctx context.Context
 }
 
 // processEditTaskWithRetries handles a single edit task with retry logic
-func (acm *AutoCaptionManager) processEditTaskWithRetries(ctx context.Context, task Task, session *AutoCaptionSession, service CaptioningService, systemPrompt, projectID string) bool {
+func (acm *AutoCaptionManager) processEditTaskWithRetries(ctx context.Context, task Task, session *AutoCaptionSession, service captioner.Captioner, systemPrompt, projectID string) bool {
 	maxRetries := session.Config.MaxRetries
 	if maxRetries <= 0 {
 		maxRetries = 3
@@ -463,11 +465,11 @@ func (acm *AutoCaptionManager) processEditTaskWithRetries(ctx context.Context, t
 			return false
 		}
 
-		// Convert images to base64
+		// Load images
 		imageAPath := filepath.Join("data", "projects", projectID, imageA.Path)
-		imageABase64, err := ImageToBase64(imageAPath)
+		captionerImageA, err := LoadImage(imageAPath)
 		if err != nil {
-			logger.Error("Failed to encode image A for auto captioning", "error", err, "path", imageAPath)
+			logger.Error("Failed to load image A for auto captioning", "error", err, "path", imageAPath)
 			if attempt == maxRetries {
 				return false
 			}
@@ -476,9 +478,9 @@ func (acm *AutoCaptionManager) processEditTaskWithRetries(ctx context.Context, t
 		}
 
 		imageBPath := filepath.Join("data", "projects", projectID, imageB.Path)
-		imageBBase64, err := ImageToBase64(imageBPath)
+		captionerImageB, err := LoadImage(imageBPath)
 		if err != nil {
-			logger.Error("Failed to encode image B for auto captioning", "error", err, "path", imageBPath)
+			logger.Error("Failed to load image B for auto captioning", "error", err, "path", imageBPath)
 			if attempt == maxRetries {
 				return false
 			}
@@ -487,7 +489,7 @@ func (acm *AutoCaptionManager) processEditTaskWithRetries(ctx context.Context, t
 		}
 
 		// Generate edit caption
-		prompt, err := service.GenerateEditCaption(imageABase64, imageBBase64, systemPrompt)
+		prompt, err := service.CaptionEdit(ctx, *captionerImageA, *captionerImageB, systemPrompt)
 		if err != nil {
 			logger.Error("Failed to generate edit caption", "error", err, "task_id", task.ID, "attempt", attempt+1)
 			if attempt == maxRetries {
